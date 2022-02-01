@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Boids</title>
+</head>
+<body>
+<canvas width="500" height="500"></canvas>
+<script>
+    const canvas = document.querySelector('canvas');
+    const ctx = canvas.getContext('2d');
+
+
+    const makeBoid = (idx) => ({
+        position: {x: 250 + Math.sin(idx) * 20, y : 250 + Math.cos(idx) * 20},
+        velocity: {vx: 3 * (0.5 - Math.random()), vy: 3 * (0.5 - Math.random())}
+    })
+
+    const drawCircle = (ctx, x, y) => {
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, 2 * Math.PI)
+        ctx.fill();
+    }
+
+    const boids = Array.from({length: 6}, (x, i) => makeBoid(i));
+
+    let start, prevTimestamp = undefined
+    const animate = (timestamp) => {
+        //. time bookkeeping
+        if (start === undefined) {
+            start = timestamp;
+            prevTimestamp = timestamp;
+        }
+        const dt = (timestamp - prevTimestamp) / 60;
+        prevTimestamp = timestamp;
+
+        // TODO boid rule 1: fly towards neighbouring boids
+
+        // TODO boid rule 2: keep some distance to near objects
+
+        // TODO boid rule 3: align with neighbours
+
+        // apply velocity to position
+        boids.forEach(boid => {
+            boid.position.x = boid.position.x + dt * boid.velocity.vx
+            boid.position.y = boid.position.y + dt * boid.velocity.vy
+        })
+
+        // clear canvas
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, 500, 500);
+
+        // draw boids
+        boids.forEach(boid => {
+            drawCircle(ctx, boid.position.x, boid.position.y);
+        })
+
+        // loop
+        window.requestAnimationFrame(animate)
+    }
+    window.requestAnimationFrame(animate)
+
+</script>
+</body>
+</html>
