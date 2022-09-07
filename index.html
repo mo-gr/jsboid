@@ -14,19 +14,43 @@
     const ctx = canvas.getContext('2d');
 
 
-    const makeBoid = (idx) => ({
-        position: {x: 250 + Math.sin(idx) * 20, y : 250 + Math.cos(idx) * 20},
-        velocity: {vx: 3 * (0.5 - Math.random()), vy: 3 * (0.5 - Math.random())}
+    const makeBoid = () => ({
+        position: {x: 500 * (Math.random()), y :500 * (Math.random())},
+        // position: {x: 250 + Math.sin(idx) * 40, y : 250 + Math.cos(idx) * 40},
+        force: {x: 15 * (0.5 - Math.random()), y: 15 * (0.5 - Math.random())},
+        velocity: {x:0, y:0}
     })
 
-    const drawCircle = (ctx, x, y) => {
-        ctx.fillStyle = 'white';
+    const drawCircle = (ctx, idx, x, y) => {
+        switch (idx % 6) {
+            case 1: ctx.fillStyle = 'white'; break
+            case 2: ctx.fillStyle = 'red'; break
+            case 3: ctx.fillStyle = 'green'; break
+            case 4: ctx.fillStyle = 'blue'; break
+            case 5: ctx.fillStyle = 'grey'; break
+            default: ctx.fillStyle = 'yellow'; break
+        }
         ctx.beginPath();
         ctx.arc(x, y, 5, 0, 2 * Math.PI)
         ctx.fill();
     }
 
-    const boids = Array.from({length: 6}, (x, i) => makeBoid(i));
+    const drawCenter = (ctx, x, y) => {
+        ctx.fillStyle = 'purple';
+        ctx.beginPath();
+        ctx.rect(x,y,5,5)
+        ctx.fill();
+    }
+
+    const boids = Array.from({length: 60}, (x, i) => makeBoid(i));
+
+    const addVector = ({x,y}, {x:xx,y:yy}) => ({x: x + xx, y: y + yy})
+    const subVector = ({x,y}, {x:xx,y:yy}) => ({x: x - xx, y: y - yy})
+    const scale = (n, {x,y}) => ({x:n*x, y:n*y})
+    const distance = ({x,y}, {x:otherX,y:otherY}) => {
+        return Math.abs(x - otherX) + Math.abs(y - otherY);
+    }
+
 
     let start, prevTimestamp = undefined
     const animate = (timestamp) => {
@@ -38,25 +62,81 @@
         const dt = (timestamp - prevTimestamp) / 60;
         prevTimestamp = timestamp;
 
-        // TODO boid rule 1: fly towards neighbouring boids
-
-        // TODO boid rule 2: keep some distance to near objects
-
-        // TODO boid rule 3: align with neighbours
-
-        // apply velocity to position
-        boids.forEach(boid => {
-            boid.position.x = boid.position.x + dt * boid.velocity.vx
-            boid.position.y = boid.position.y + dt * boid.velocity.vy
-        })
 
         // clear canvas
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, 500, 500);
 
-        // draw boids
+        // TODO boid rule 1: fly towards neighbouring boids
+        boids.forEach((boid) => {
+            let centre = {x: 0, y:0};
+            const neighbours = boids
+                .filter((other => distance(boid.position, other.position) < 50 && distance(boid.position, other.position) > 0))
+
+            neighbours.forEach(b => { centre = addVector(centre, b.position)})
+            const count = neighbours.length;
+
+            if (count === 0) return;
+
+            centre = scale(1 / (count * 0.999), centre);
+
+            boid.force = addVector(boid.force, scale(1 / 100, subVector(centre, boid.position)));
+
+            drawCenter(ctx, centre.x, centre.y);
+        })
+
+        // TODO boid rule 2: keep some distance to near objects
         boids.forEach(boid => {
-            drawCircle(ctx, boid.position.x, boid.position.y);
+            let avoidanceVec = {x:0, y:0};
+            boids
+                .filter((other => distance(boid.position, other.position) < 15 && distance(boid.position, other.position) > 0))
+                .forEach((neighbour => avoidanceVec = subVector(avoidanceVec, subVector(neighbour.position, boid.position))));
+
+            boid.force = addVector(boid.force, scale(1 / 8, avoidanceVec));
+        })
+
+        // TODO boid rule 3: align with neighbours
+        boids.forEach(boid => {
+            let commonVelocity = {x: 0, y:0};
+            const neighbours = boids
+                .filter((other => distance(boid.position, other.position) < 50 && distance(boid.position, other.position) > 0));
+
+            neighbours.forEach(b => { commonVelocity = addVector(commonVelocity, b.velocity)})
+            const count = neighbours.length
+            if (count === 0) return;
+
+            commonVelocity = scale(1 / count, commonVelocity);
+
+            boid.force = addVector(boid.force, scale(1 / 8, subVector(commonVelocity, boid.velocity)));
+        })
+
+        // apply force to velocity
+        boids.forEach(boid => {
+            boid.velocity = addVector(boid.velocity, boid.force)
+            boid.force = {x:0, y:0}
+
+            // apply max velocity
+            while (distance({x:0, y:0}, boid.velocity) > 100) {
+                boid.velocity = scale(1 / 10, boid.velocity);
+            }
+        })
+
+        // apply velocity to position
+        boids.forEach(boid => {
+            boid.position = addVector(boid.position, scale(dt, boid.velocity))
+        })
+
+        // wrap the world
+        boids.forEach(boid => {
+            if (boid.position.x > 500) boid.position.x = 0
+            if (boid.position.x < 0) boid.position.x = 500
+            if (boid.position.y > 500) boid.position.y = 0
+            if (boid.position.y < 0) boid.position.y = 500
+        })
+
+        // draw boids
+        boids.forEach((boid, idx) => {
+            drawCircle(ctx, idx, boid.position.x, boid.position.y);
         })
 
         // loop
